@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Publier une annonce</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:Arial,sans-serif;background:#eef1f7;color:#0b1f4d}
+.app{max-width:480px;margin:0 auto;background:#fff;min-height:100vh;padding:16px}
+a{color:#1e63d6;text-decoration:none}
+h2{margin:12px 0}
+label{display:block;margin:14px 0 6px;font-weight:bold;font-size:14px}
+input,select,textarea{width:100%;padding:13px;border:1px solid #d5dbe8;border-radius:12px;font-size:15px;font-family:inherit}
+textarea{height:90px}
+button{width:100%;margin-top:20px;padding:15px;border:0;border-radius:12px;background:#ff7a00;color:#fff;font-size:17px;font-weight:bold}
+</style>
+</head>
+<body>
+<div class="app">
+  <a href="index.html">← Retour</a>
+  <h2>Publier une annonce</h2>
+  <label>Titre *</label>
+  <input id="titre" placeholder="Ex : Appartement meublé à Lomé">
+  <label>Catégorie *</label>
+  <select id="cat">
+    <option>Immobilier</option><option>Location</option><option>Vente</option>
+    <option>Loisirs</option><option>Emploi</option><option>Services</option>
+  </select>
+  <label>Lieu *</label>
+  <input id="lieu" placeholder="Ex : Baguida, Lomé">
+  <label>Prix (FCFA) *</label>
+  <input id="prix" type="number" placeholder="Ex : 350000">
+  <label>Description</label>
+  <textarea id="desc" placeholder="Décrivez votre bien ou service..."></textarea>
+  <button onclick="publier()">Publier</button>
+</div>
+<script>
+function publier(){
+  var t=document.getElementById('titre').value.trim();
+  var l=document.getElementById('lieu').value.trim();
+  var p=document.getElementById('prix').value.trim();
+  if(!t||!l||!p){alert('Remplissez le titre, le lieu et le prix.');return;}
+  var liste=[];
+  try{liste=JSON.parse(localStorage.getItem('annonces')||'[]');}catch(e){}
+  liste.push({titre:t,categorie:document.getElementById('cat').value,lieu:l,prix:Number(p).toLocaleString('fr-FR'),desc:document.getElementById('desc').value});
+  localStorage.setItem('annonces',JSON.stringify(liste));
+  alert('Annonce publiée !');
+  location.href='index.html';
+}
+</script>
+</body>
+                                 </html>
