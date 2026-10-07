@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>APPNEED</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--bleu:#0b1f4d;--orange:#ff7a00;--vert:#25d366;--gris:#6b7280;--bord:#e5e7eb}
+*{box-sizing:border-box}
+body{margin:0;font-family:'Inter',system-ui,-apple-system,'Segoe UI',Roboto,Arial,sans-serif;background:#f3f4f6;color:#111827}
+.app{max-width:480px;margin:0 auto;min-height:100vh;padding-bottom:84px}
+header{position:sticky;top:0;z-index:5;background:var(--bleu);padding:12px 14px 12px;color:#fff}
+.l1{display:flex;justify-content:space-between;align-items:center}
+.logo{font-size:22px;font-weight:800;letter-spacing:-.3px}
+.logo span{color:var(--orange)}
+.ville{font-size:12px;opacity:.85}
+.sb{margin-top:10px;display:flex;align-items:center;background:#fff;border-radius:24px;padding:0 14px}
+.sb input{flex:1;border:0;outline:0;padding:12px 8px;font:inherit;font-size:15px;background:transparent;color:#111}
+.chips{display:flex;gap:8px;overflow-x:auto;padding:12px 14px;background:#fff;border-bottom:1px solid var(--bord);scrollbar-width:none}
+.chips::-webkit-scrollbar{display:none}
+.chip{flex:0 0 auto;border:1px solid var(--bord);background:#fff;border-radius:20px;padding:8px 14px;font:inherit;font-size:13px;font-weight:600;color:#374151}
+.chip.on{background:var(--orange);border-color:var(--orange);color:#fff}
+.titre{padding:16px 14px 8px;font-size:17px;font-weight:700}
+.card{background:#fff;margin:0 14px 14px;border-radius:16px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.img{position:relative;aspect-ratio:16/10;background:#dfe7f7;display:flex;align-items:center;justify-content:center;font-size:46px}
+.img img{width:100%;height:100%;object-fit:cover;display:block}
+.badge{position:absolute;top:10px;left:10px;background:#16a34a;color:#fff;font-size:11px;font-weight:700;padding:4px 10px;border-radius:12px}
+.badge.r{background:#d97706}
+.badge.v{background:#6b7280}
+.cat{position:absolute;top:10px;right:10px;background:rgba(0,0,0,.55);color:#fff;font-size:11px;font-weight:600;padding:4px 10px;border-radius:12px}
+.inf{padding:12px 14px 14px}
+.prix{font-size:20px;font-weight:800;color:var(--bleu)}
+.nom{font-size:15px;font-weight:600;margin-top:2px}
+.lieu{font-size:13px;color:var(--gris);margin-top:2px}
+.spec{font-size:12px;color:var(--gris);margin-top:6px}
+.ag{display:flex;align-items:center;gap:8px;margin-top:12px;padding-top:12px;border-top:1px solid var(--bord)}
+.av{width:34px;height:34px;border-radius:50%;background:var(--bleu);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;flex:0 0 auto}
+.an{flex:1;font-size:13px;font-weight:600;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.an small{display:block;font-weight:400;color:var(--gris);font-size:11px}
+.b{border-radius:18px;padding:8px 12px;font-size:13px;font-weight:700;text-decoration:none;color:#fff;background:var(--vert);flex:0 0 auto}
+.b.o{background:#fff;color:var(--bleu);border:1px solid var(--bord)}
+.msg{padding:16px 14px;color:var(--gris);font-size:14px}
+.nav{position:fixed;bottom:0;left:0;right:0;max-width:480px;margin:0 auto;background:#fff;border-top:1px solid var(--bord);display:flex;align-items:center;padding:8px 0 10px;font-size:11px;font-weight:600;color:var(--gris);text-align:center}
+.nav a,.nav div{flex:1;color:inherit;text-decoration:none}
+.nav i{display:block;font-style:normal;font-size:20px}
+.nav .on{color:var(--orange)}
+.plus{width:48px;height:48px;border-radius:50%;background:var(--orange);color:#fff;font-size:28px;line-height:48px;margin:0 auto;box-shadow:0 2px 6px rgba(255,122,0,.4)}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="l1"><div class="logo">APP<span>NEED</span></div><div class="ville">📍 Lomé, Togo</div></div>
+    <div class="sb"><span>🔍</span><input id="q" type="search" placeholder="Rechercher un bien, un service..."></div>
+  </header>
+  <div class="chips" id="chips"></div>
+  <div class="titre">Annonces récentes</div>
+  <div id="liste"></div>
+  <div id="vide" class="msg">Chargement...</div>
+</div>
+<div class="nav">
+  <a href="index.html" class="on"><i>🏠</i>Accueil</a>
+  <a href="#" id="nrech"><i>🔍</i>Recherche</a>
+  <a href="publier.html"><div class="plus">+</div></a>
+  <a href="#" id="nmsg"><i>💬</i>Messages</a>
+  <a href="connexion.html"><i>👤</i>Profil</a>
+</div>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { initializeFirestore, collection, getDocs, query, orderBy, limit } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+const app = initializeApp({
+  apiKey: "AIzaSyCPz4uQi5i9rQAW1gBN-CXX8yCGS_uhUpU",
+  authDomain: "appneed-b4350.firebaseapp.com",
+  projectId: "appneed-b4350",
+  storageBucket: "appneed-b4350.firebasestorage.app",
+  messagingSenderId: "799172298311",
+  appId: "1:799172298311:web:1598c292d14878fc08d362"
+});
+const db = initializeFirestore(app, { experimentalAutoDetectLongPolling: true });
+
+const $ = id => document.getElementById(id);
+const CATS = ['Tous','Immobilier','Location','Vente','Loisirs','Emploi','Services'];
+let annonces = [], filtre = 'Tous';
+
+CATS.forEach(c => {
+  const b = document.createElement('button');
+  b.className = 'chip' + (c === 'Tous' ? ' on' : '');
+  b.textContent = c;
+  b.addEventListener('click', () => {
+    filtre = c;
+    document.querySelectorAll('.chip').forEach(x => x.classList.toggle('on', x === b));
+    afficher();
+  });
+  $('chips').appendChild(b);
+});
+$('q').addEventListener('input', afficher);
+$('nrech').addEventListener('click', e => { e.preventDefault(); $('q').focus(); window.scrollTo(0, 0); });
+$('nmsg').addEventListener('click', e => { e.preventDefault(); alert('La messagerie arrive bientôt.'); });
+
+function bouton(texte, href, clair) {
+  const a = document.createElement('a');
+  a.className = 'b' + (clair ? ' o' : '');
+  a.textContent = texte; a.href = href;
+  if (href.startsWith('http')) { a.target = '_blank'; a.rel = 'noopener'; }
+  return a;
+}
+
+function afficher() {
+  const t = $('q').value.trim().toLowerCase();
+  const liste = $('liste');
+  liste.innerHTML = '';
+  const vues = annonces.filter(a =>
+    (filtre === 'Tous' || a.categorie === filtre) &&
+    (!t || [a.titre, a.lieu, a.categorie, a.desc].join(' ').toLowerCase().includes(t))
+  );
+  $('vide').style.display = vues.length ? 'none' : 'block';
+  if (!vues.length) $('vide').textContent = annonces.length ? 'Aucune annonce ne correspond.' : "Aucune annonce pour l'instant. Touchez + pour publier la première !";
+  vues.forEach(a => {
+    const d = document.createElement('div');
+    d.className = 'card';
+    d.innerHTML = '<div class="img"></div><div class="inf"><div class="prix"></div><div class="nom"></div><div class="lieu"></div><div class="spec"></div><div class="ag" style="display:none"><div class="av"></div><div class="an"></div></div></div>';
+    const img = d.querySelector('.img');
+    const p0 = a.photos && a.photos[0];
+    if (p0 && /^https?:\/\//i.test(p0)) {
+      const im = document.createElement('img');
+      im.src = p0; im.alt = ''; im.loading = 'lazy';
+      img.appendChild(im);
+    } else { img.textContent = '🏠'; }
+    const st = a.statut || 'Disponible';
+    const bd = document.createElement('div');
+    bd.className = 'badge' + (st === 'Réservé' ? ' r' : st.startsWith('Vendu') ? ' v' : '');
+    bd.textContent = st;
+    const ct = document.createElement('div');
+    ct.className = 'cat'; ct.textContent = a.categorie;
+    img.appendChild(bd); img.appendChild(ct);
+    d.querySelector('.prix').textContent = Number(a.prix).toLocaleString('fr-FR') + ' FCFA';
+    d.querySelector('.nom').textContent = a.titre;
+    d.querySelector('.lieu').textContent = '📍 ' + a.lieu;
+    d.querySelector('.spec').textContent = a.surface ? '📐 ' + a.surface + ' m²' : '';
+    if (a.agentTel || a.agent) {
+      const ag = d.querySelector('.ag');
+      ag.style.display = 'flex';
+      d.querySelector('.av').textContent = (a.agent || '?').charAt(0).toUpperCase();
+      d.querySelector('.an').textContent = a.agent || 'Vendeur';
+      const small = document.createElement('small');
+      small.textContent = 'Vendeur vérifié';
+      d.querySelector('.an').appendChild(small);
+      if (a.agentTel) {
+        let n = a.agentTel.replace(/\D/g, '');
+        if (n.length === 8) n = '228' + n;
+        ag.appendChild(bouton('WhatsApp', 'https://wa.me/' + n));
+        ag.appendChild(bouton('Appeler', 'tel:+' + n, true));
+      }
+    }
+    liste.appendChild(d);
+  });
+}
+
+async function charger() {
+  try {
+    const snap = await getDocs(query(collection(db, 'annonces'), orderBy('date', 'desc'), limit(100)));
+    annonces = snap.docs.map(x => x.data());
+    afficher();
+  } catch (e) {
+    $('vide').textContent = 'Erreur de chargement : ' + e.message;
+  }
+}
+charger();
+</script>
+</body>
+</html>
