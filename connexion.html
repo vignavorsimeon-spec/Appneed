@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Connexion</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:Arial,sans-serif;background:#eef1f7;color:#0b1f4d}
+.app{max-width:480px;margin:0 auto;background:#fff;min-height:100vh;padding:16px}
+a{color:#1e63d6;text-decoration:none}
+.logo{font-size:28px;font-weight:bold;text-align:center;margin:24px 0 4px}
+.logo span{color:#ff7a00}
+p.s{text-align:center;color:#555;margin:0 0 20px}
+label{display:block;margin:14px 0 6px;font-weight:bold;font-size:14px}
+input{width:100%;padding:13px;border:1px solid #d5dbe8;border-radius:12px;font-size:15px}
+button{width:100%;margin-top:14px;padding:15px;border:0;border-radius:12px;font-size:16px;font-weight:bold}
+#login{background:#ff7a00;color:#fff}
+#signup{background:#fff;color:#0b1f4d;border:2px solid #0b1f4d}
+#msg{margin-top:14px;color:#c62828;font-size:14px}
+</style>
+</head>
+<body>
+<div class="app">
+  <a href="index.html">← Retour</a>
+  <div class="logo">APP<span>NEED</span></div>
+  <p class="s">Connectez-vous pour publier vos annonces</p>
+  <label>E-mail</label>
+  <input id="email" type="email" placeholder="exemple@gmail.com">
+  <label>Mot de passe (6 caractères minimum)</label>
+  <input id="mdp" type="password" placeholder="Choisissez un mot de passe">
+  <button id="login">Se connecter</button>
+  <button id="signup">Créer un compte</button>
+  <div id="msg"></div>
+</div>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+
+const app = initializeApp({
+  apiKey: "AIzaSyCPz4uQi5i9rQAW1gBN-CXX8yCGS_uhUpU",
+  authDomain: "appneed-b4350.firebaseapp.com",
+  projectId: "appneed-b4350",
+  storageBucket: "appneed-b4350.firebasestorage.app",
+  messagingSenderId: "799172298311",
+  appId: "1:799172298311:web:1598c292d14878fc08d362"
+});
+const auth = getAuth(app);
+const msg = document.getElementById('msg');
+
+onAuthStateChanged(auth, u => { if (u) location.href = 'publier.html'; });
+
+function erreur(e) {
+  const c = e.code || '';
+  if (c.includes('invalid-credential') || c.includes('wrong-password') || c.includes('user-not-found')) msg.textContent = 'E-mail ou mot de passe incorrect.';
+  else if (c.includes('email-already-in-use')) msg.textContent = 'Cet e-mail a déjà un compte. Touchez « Se connecter ».';
+  else if (c.includes('weak-password')) msg.textContent = 'Mot de passe trop court (6 caractères minimum).';
+  else if (c.includes('invalid-email')) msg.textContent = 'Adresse e-mail invalide.';
+  else msg.textContent = 'Erreur : ' + e.message;
+}
+
+document.getElementById('login').addEventListener('click', async () => {
+  msg.textContent = '';
+  try { await signInWithEmailAndPassword(auth, email.value.trim(), mdp.value); } catch (e) { erreur(e); }
+});
+document.getElementById('signup').addEventListener('click', async () => {
+  msg.textContent = '';
+  try { await createUserWithEmailAndPassword(auth, email.value.trim(), mdp.value); } catch (e) { erreur(e); }
+});
+</script>
+</body>
+  </html>
