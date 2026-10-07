@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Test Firestore</title>
+</head>
+<body>
+<pre id="o" style="white-space:pre-wrap;font-size:15px;padding:12px">Test en cours (jusqu'à 30 secondes)...</pre>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { initializeFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+const o = document.getElementById('o');
+const app = initializeApp({
+  apiKey: "AIzaSyCPz4uQi5i9rQAW1gBN-CXX8yCGS_uhUpU",
+  authDomain: "appneed-b4350.firebaseapp.com",
+  projectId: "appneed-b4350",
+  storageBucket: "appneed-b4350.firebasestorage.app",
+  messagingSenderId: "799172298311",
+  appId: "1:799172298311:web:1598c292d14878fc08d362"
+});
+
+async function essai(nom, id) {
+  try {
+    const reglages = { experimentalForceLongPolling: true };
+    const db = id ? initializeFirestore(app, reglages, id) : initializeFirestore(app, reglages);
+    await Promise.race([
+      getDoc(doc(db, 'annonces', 'test')),
+      new Promise((_, rej) => setTimeout(() => rej(new Error('délai dépassé (15 s)')), 15000))
+    ]);
+    return nom + ' : OK, la base répond';
+  } catch (e) {
+    return nom + ' : ' + (e.code || '') + ' ' + e.message;
+  }
+}
+
+o.textContent = await essai('Base (default)', null);
+o.textContent += '\n\n' + await essai('Base "default"', 'default');
+</script>
+</body>
+</html>
