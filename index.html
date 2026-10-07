@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>APPNEED</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:Arial,sans-serif;background:#eef1f7;color:#0b1f4d}
+.app{max-width:480px;margin:0 auto;background:#fff;min-height:100vh;padding-bottom:80px}
+.top{display:flex;justify-content:space-between;align-items:center;padding:14px 16px 4px}
+.logo{font-size:24px;font-weight:bold;color:#0b1f4d}
+.logo span{color:#ff7a00}
+.loc{padding:0 16px;font-size:14px;color:#555}
+.search{padding:10px 16px}
+.search input{width:100%;padding:13px 14px;border:1px solid #d5dbe8;border-radius:12px;font-size:15px}
+.hero{margin:4px 16px 14px;border-radius:16px;padding:28px 18px;color:#fff;font-size:20px;font-weight:bold;background:linear-gradient(135deg,#0b1f4d,#1e63d6 70%,#ff7a00)}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;padding:0 16px}
+.cat{border-radius:14px;padding:16px 4px;text-align:center;color:#fff;font-size:13px;font-weight:bold}
+.cat b{display:block;font-size:26px;margin-bottom:4px}
+.o{background:#ff7a00}.g{background:#1faa8a}.r{background:#e8453c}
+.p{background:#6a3fe0}.b{background:#1e63d6}.v{background:#8a3fd0}
+.title{display:flex;justify-content:space-between;padding:20px 16px 8px;font-weight:bold}
+.card{display:flex;gap:12px;margin:0 16px 12px;padding:10px;border:1px solid #e3e7f0;border-radius:14px}
+.ph{width:84px;height:84px;border-radius:10px;background:#dfe7f7;display:flex;align-items:center;justify-content:center;font-size:30px;flex-shrink:0;overflow:hidden}
+.ph img{width:100%;height:100%;object-fit:cover}
+.card h4{margin:2px 0 4px;font-size:15px}
+.card small{color:#666}
+.meta{font-size:12px;color:#555;margin-top:2px}
+.price{color:#1b8a3a;font-weight:bold;margin-top:4px;font-size:14px}
+.act{margin-top:6px;display:flex;gap:12px;font-size:13px}
+.act a{color:#1e63d6;text-decoration:none}
+.nav{position:fixed;bottom:0;left:0;right:0;max-width:480px;margin:0 auto;background:#fff;border-top:1px solid #e3e7f0;display:flex;justify-content:space-around;align-items:center;padding:8px 0;font-size:11px;text-align:center}
+.nav div{flex:1}
+.nav .plus{width:46px;height:46px;border-radius:50%;background:#ff7a00;color:#fff;font-size:28px;line-height:46px;margin:0 auto}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="top">
+    <div class="logo">APP<span>NEED</span></div>
+    <div>🔍</div>
+  </div>
+  <div class="loc">📍 Lomé, Togo</div>
+  <div class="search"><input id="q" type="text" placeholder="Rechercher une annonce..."></div>
+  <div class="hero">Trouvez ce qu'il vous faut près de chez vous !</div>
+  <div class="grid">
+    <div class="cat o"><b>🏠</b>Immobilier</div>
+    <div class="cat g"><b>🔑</b>Location</div>
+    <div class="cat r"><b>🛒</b>Vente</div>
+    <div class="cat p"><b>🎮</b>Loisirs</div>
+    <div class="cat b"><b>💼</b>Emploi</div>
+    <div class="cat v"><b>🔧</b>Services</div>
+  </div>
+  <div class="title">Annonces à proximité</div>
+  <div id="liste"></div>
+  <div id="vide" style="padding:0 16px;color:#666">Chargement...</div>
+</div>
+<div class="nav">
+  <div>🏠<br>Accueil</div>
+  <div>🔍<br>Rechercher</div>
+  <div><a href="publier.html" style="text-decoration:none"><div class="plus">+</div></a></div>
+  <div>💬<br>Messages</div>
+  <div>👤<br>Profil</div>
+</div>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getFirestore, collection, getDocs, query, orderBy, limit } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+const app = initializeApp({
+  apiKey: "AIzaSyCPz4uQi5i9rQAW1gBN-CXX8yCGS_uhUpU",
+  authDomain: "appneed-b4350.firebaseapp.com",
+  projectId: "appneed-b4350",
+  storageBucket: "appneed-b4350.firebasestorage.app",
+  messagingSenderId: "799172298311",
+  appId: "1:799172298311:web:1598c292d14878fc08d362"
+});
+const db = getFirestore(app);
+
+document.getElementById('q').addEventListener('input', () => {
+  const t = document.getElementById('q').value.toLowerCase();
+  document.querySelectorAll('#liste .card').forEach(c => {
+    c.style.display = c.innerText.toLowerCase().includes(t) ? 'flex' : 'none';
+  });
+});
+
+function lien(texte, href) {
+  const a = document.createElement('a');
+  a.textContent = texte; a.href = href;
+  if (href.startsWith('http')) { a.target = '_blank'; a.rel = 'noopener'; }
+  return a;
+}
+
+async function charger() {
+  const liste = document.getElementById('liste');
+  const vide = document.getElementById('vide');
+  try {
+    const snap = await getDocs(query(collection(db, 'annonces'), orderBy('date', 'desc'), limit(50)));
+    if (snap.empty) { vide.textContent = "Aucune annonce pour l'instant. Touchez + pour publier la première !"; return; }
+    vide.style.display = 'none';
+    snap.forEach(doc => {
+      const a = doc.data();
+      const d = document.createElement('div');
+      d.className = 'card';
+      d.innerHTML = '<div class="ph"></div><div><h4></h4><small></small><div class="meta"></div><div class="price"></div><div class="act"></div></div>';
+      const ph = d.querySelector('.ph');
+      const p0 = a.photos && a.photos[0];
+      if (p0 && /^https?:\/\//i.test(p0)) {
+        const im = document.createElement('img');
+        im.src = p0; im.alt = '';
+        ph.appendChild(im);
+      } else { ph.textContent = '📌'; }
+      d.querySelector('h4').textContent = a.titre;
+      d.querySelector('small').textContent = a.categorie + ' · ' + a.lieu;
+      d.querySelector('.meta').textContent = (a.surface ? a.surface + ' m² · ' : '') + (a.statut || 'Disponible');
+      d.querySelector('.price').textContent = Number(a.prix).toLocaleString('fr-FR') + ' FCFA';
+      const act = d.querySelector('.act');
+      if (a.agentTel) {
+        act.appendChild(lien('Appeler' + (a.agent ? ' ' + a.agent : ''), 'tel:' + a.agentTel.replace(/[^\d+]/g, '')));
+      }
+      if (a.gps && /^-?\d+(\.\d+)?,\s*-?\d+(\.\d+)?$/.test(a.gps)) {
+        act.appendChild(lien('Localiser', 'https://www.google.com/maps?q=' + encodeURIComponent(a.gps)));
+      }
+      liste.appendChild(d);
+    });
+  } catch (e) {
+    vide.textContent = 'Erreur de chargement : ' + e.message;
+  }
+}
+charger();
+</script>
+</body>
+                                           </html>
