@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Publier une annonce</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:Arial,sans-serif;background:#eef1f7;color:#0b1f4d}
+.app{max-width:480px;margin:0 auto;background:#fff;min-height:100vh;padding:16px}
+a{color:#1e63d6;text-decoration:none}
+.bar{display:flex;justify-content:space-between;font-size:14px}
+h2{margin:12px 0}
+label{display:block;margin:14px 0 6px;font-weight:bold;font-size:14px}
+input,select,textarea{width:100%;padding:13px;border:1px solid #d5dbe8;border-radius:12px;font-size:15px;font-family:inherit}
+textarea{height:90px}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+#photos input{margin-bottom:8px}
+button{width:100%;margin-top:20px;padding:15px;border:0;border-radius:12px;background:#ff7a00;color:#fff;font-size:17px;font-weight:bold}
+button:disabled{opacity:.6}
+#out,#addph{background:none;color:#1e63d6;border:0;width:auto;margin:0;padding:0;font-size:14px;font-weight:normal}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="bar"><a href="index.html">← Retour</a><button id="out">Se déconnecter</button></div>
+  <h2>Publier une annonce</h2>
+  <label>Catégorie *</label>
+  <select id="cat">
+    <option>Immobilier</option><option>Location</option><option>Vente</option>
+    <option>Loisirs</option><option>Emploi</option><option>Services</option>
+  </select>
+  <label>Titre *</label>
+  <input id="titre" placeholder="Ex : Villa 4 pièces avec jardin">
+  <div class="row">
+    <div><label>Prix (FCFA) *</label><input id="prix" type="number" placeholder="0"></div>
+    <div><label>Surface (m²)</label><input id="surface" type="number" placeholder="0"></div>
+  </div>
+  <label>Photos (liens d'images)</label>
+  <div id="photos"></div>
+  <button id="addph" type="button">+ Ajouter une photo</button>
+  <label>Localisation *</label>
+  <input id="lieu" placeholder="Ex : Baguida, Lomé">
+  <label>Coordonnées GPS (facultatif)</label>
+  <input id="gps" placeholder="Ex : 6.1725,1.2314">
+  <div class="row">
+    <div><label>Agent : nom</label><input id="agent" placeholder="Ex : Awa Koné"></div>
+    <div><label>Agent : téléphone</label><input id="tel" type="tel" placeholder="+228 ..."></div>
+  </div>
+  <label>Statut</label>
+  <select id="statut"><option>Disponible</option><option>Réservé</option><option>Vendu / Loué</option></select>
+  <label>Description</label>
+  <textarea id="desc" placeholder="Détails utiles pour convaincre un client..."></textarea>
+  <button id="btn">Publier l'annonce</button>
+</div>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+
+const app = initializeApp({
+  apiKey: "AIzaSyCPz4uQi5i9rQAW1gBN-CXX8yCGS_uhUpU",
+  authDomain: "appneed-b4350.firebaseapp.com",
+  projectId: "appneed-b4350",
+  storageBucket: "appneed-b4350.firebasestorage.app",
+  messagingSenderId: "799172298311",
+  appId: "1:799172298311:web:1598c292d14878fc08d362"
+});
+const db = getFirestore(app);
+const auth = getAuth(app);
+let user = null;
+const $ = id => document.getElementById(id);
+
+onAuthStateChanged(auth, u => {
+  if (!u) { location.href = 'connexion.html'; return; }
+  user = u;
+});
+$('out').addEventListener('click', async () => {
+  await signOut(auth);
+  location.href = 'index.html';
+});
+
+const ph = $('photos');
+function addPhoto() {
+  if (ph.children.length >= 5) { alert('5 photos maximum.'); return; }
+  const i = document.createElement('input');
+  i.type = 'url'; i.placeholder = 'https://...';
+  ph.appendChild(i);
+}
+addPhoto();
+$('addph').addEventListener('click', addPhoto);
+
+$('btn').addEventListener('click', async () => {
+  if (!user) { location.href = 'connexion.html'; return; }
+  const t = $('titre').value.trim();
+  const l = $('lieu').value.trim();
+  const p = $('prix').value.trim();
+  if (!t || !l || !p) { alert('Remplissez le titre, le prix et la localisation.'); return; }
+  const photos = [...ph.querySelectorAll('input')].map(i => i.value.trim()).filter(u => /^https?:\/\//i.test(u));
+  const btn = $('btn');
+  btn.disabled = true; btn.textContent = 'Publication...';
+  try {
+    await addDoc(collection(db, 'annonces'), {
+      titre: t,
+      categorie: $('cat').value,
+      lieu: l,
+      prix: Number(p),
+      surface: Number($('surface').value) || 0,
+      photos: photos,
+      gps: $('gps').value.trim(),
+      agent: $('agent').value.trim(),
+      agentTel: $('tel').value.trim(),
+      statut: $('statut').value,
+      desc: $('desc').value,
+      uid: user.uid,
+      email: user.email,
+      date: serverTimestamp()
+    });
+    alert('Annonce publiée !');
+    location.href = 'index.html';
+  } catch (e) {
+    alert('Erreur : ' + e.message);
+    btn.disabled = false; btn.textContent = "Publier l'annonce";
+  }
+});
+</script>
+</body>
+    </html>
