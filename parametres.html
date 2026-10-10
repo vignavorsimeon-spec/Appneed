@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Paramètres - APPNEED</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<style>
+.an{padding:12px 0;border-bottom:1px solid var(--bord)}
+.an:last-child{border-bottom:0}
+.an b{display:block;font-size:15px}
+.an .p{color:#166534;font-weight:700;font-size:14px;margin-top:2px}
+.act{display:flex;gap:8px;margin-top:10px;align-items:center}
+.act select{flex:1;padding:9px;border:1px solid var(--bord);border-radius:10px;font:inherit;font-size:13px}
+.mini{border:1px solid var(--bord);background:#fff;border-radius:10px;padding:9px 12px;font:inherit;font-size:13px;font-weight:600;color:var(--bleu);text-decoration:none}
+.mini.sup{color:#dc2626;border-color:#fecaca}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="top"><a href="index.html">← Accueil</a><div class="logo">APP<span>NEED</span></div><span></span></header>
+  <h2 class="t">Mon compte</h2>
+  <div class="carte" id="compte"><div class="msg">Chargement...</div></div>
+  <h2 class="t">Mes annonces</h2>
+  <div class="carte" id="mes"><div class="msg">Connectez-vous pour voir vos annonces.</div></div>
+  <h2 class="t">Raccourcis</h2>
+  <div class="carte">
+    <a class="ligne" href="publier.html">Publier une annonce <small>›</small></a>
+    <a class="ligne" href="verification.html">Devenir vendeur vérifié <small>›</small></a>
+    <a class="ligne" href="carte.html">Carte des annonces <small>›</small></a>
+  </div>
+  <div class="carte" id="bas"></div>
+</div>
+<script type="module">
+import { db, auth } from './firebase.js';
+import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { doc, getDoc, collection, query, where, getDocs, updateDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+const el = (tag, cls, txt) => { const e = document.createElement(tag); if (cls) e.className = cls; if (txt !== undefined) e.textContent = txt; return e; };
+const compte = document.getElementById('compte');
+const mes = document.getElementById('mes');
+const bas = document.getElementById('bas');
+
+async function chargerMes(u) {
+  mes.replaceChildren(el('div', 'msg', 'Chargement...'));
+  try {
+    const snap = await getDocs(query(collection(db, 'annonces'), where('uid', '==', u.uid)));
+    const items = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+      .sort((a, b) => ((b.date && b.date.seconds) || 0) - ((a.date && a.date.seconds) || 0));
+    mes.replaceChildren();
+    if (!items.length) { mes.appendChild(el('div', 'msg', "Vous n'avez pas encore d'annonce.")); return; }
+    items.forEach(a => {
+      const box = el('div', 'an');
+      box.appendChild(el('b', '', a.titre));
+      box.appendChild(el('div', 'p', Number(a.prix).toLocaleString('fr-FR') + ' FCFA'));
+      const act = el('div', 'act');
+      const sel = document.createElement('select');
+      ['Disponible', 'Réservé', 'Vendu / Loué'].forEach(s => {
+        const o = document.createElement('option'); o.textContent = s;
+        if ((a.statut || 'Disponible') === s) o.selected = true;
+        sel.appendChild(o);
+      });
+      sel.addEventListener('change', async () => {
+        try { await updateDoc(doc(db, 'annonces', a.id), { statut: sel.value }); }
+        catch (e) { alert('Erreur : ' + e.message); }
+      });
+      const voir = el('a', 'mini', 'Voir'); voir.href = 'annonce.html?id=' + encodeURIComponent(a.id);
+      const sup = el('button', 'mini sup', 'Supprimer');
+      sup.addEventListener('click', async () => {
+        if (!confirm('Supprimer cette annonce définitivement ?')) return;
+        try { await deleteDoc(doc(db, 'annonces', a.id)); box.remove(); }
+        catch (e) { alert('Erreur : ' + e.message); }
+      });
+      act.appendChild(sel); act.appendChild(voir); act.appendChild(sup);
+      box.appendChild(act);
+      mes.appendChild(box);
+    });
+  } catch (e) {
+    mes.replaceChildren(el('div', 'msg', 'Erreur : ' + e.message));
+  }
+}
+
+onAuthStateChanged(auth, async u => {
+  compte.replaceChildren(); bas.replaceChildren();
+  if (!u) {
+    compte.appendChild(el('div', 'msg', "Vous n'êtes pas connecté."));
+    const b = el('a', 'btn', 'Se connecter'); b.href = 'connexion.html';
+    compte.appendChild(b);
+    return;
+  }
+  const l1 = el('div', 'ligne'); l1.appendChild(el('span', '', 'E-mail')); l1.appendChild(el('small', '', u.email));
+  compte.appendChild(l1);
+  const l2 = el('div', 'ligne'); l2.appendChild(el('span', '', 'Statut vendeur'));
+  const p = el('span', 'pastille', 'Non vérifié');
+  l2.appendChild(p); compte.appendChild(l2);
+  try {
+    const v = await getDoc(doc(db, 'verifications', u.uid));
+    if (v.exists()) {
+      const s = v.data().statut;
+      if (s === 'verifie') { p.textContent = 'Vérifié'; p.classList.add('ok'); }
+      else if (s === 'en attente') { p.textContent = 'En attente'; p.classList.add('att'); }
+      else if (s === 'refuse') { p.textContent = 'Refusé'; }
+    }
+  } catch (e) { p.textContent = 'Erreur : ' + e.message; }
+  const out = el('button', 'btn rouge', 'Se déconnecter');
+  out.addEventListener('click', async () => { await signOut(auth); location.href = 'index.html'; });
+  bas.appendChild(out);
+  chargerMes(u);
+});
+</script>
+</body>
+  </html>
