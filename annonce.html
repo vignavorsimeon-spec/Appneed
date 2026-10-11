@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Annonce - APPNEED</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--bleu:#0b1f4d;--orange:#ff7a00;--vert:#25d366;--gris:#6b7280;--bord:#e5e7eb}
+*{box-sizing:border-box}
+body{margin:0;font-family:'Inter',system-ui,Arial,sans-serif;background:#f3f4f6;color:#111827}
+.app{max-width:480px;margin:0 auto;background:#fff;min-height:100vh;padding-bottom:90px}
+header{position:sticky;top:0;z-index:5;background:var(--bleu);color:#fff;padding:12px 14px;display:flex;justify-content:space-between;align-items:center}
+header a,header button{color:#fff;text-decoration:none;font:inherit;font-size:14px;background:none;border:0;padding:0}
+.gal{position:relative}
+.rail{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none}
+.rail::-webkit-scrollbar{display:none}
+.rail img,.vide{flex:0 0 100%;scroll-snap-align:center;aspect-ratio:16/10;object-fit:cover;background:#dfe7f7}
+.vide{display:flex;align-items:center;justify-content:center;font-size:60px}
+.cpt{position:absolute;right:10px;bottom:10px;background:rgba(0,0,0,.6);color:#fff;font-size:12px;font-weight:600;padding:4px 10px;border-radius:12px}
+.badge{position:absolute;top:10px;left:10px;background:#16a34a;color:#fff;font-size:12px;font-weight:700;padding:4px 12px;border-radius:12px}
+.badge.r{background:#d97706}.badge.v{background:#6b7280}
+.inf{padding:16px 16px 8px}
+.prix{font-size:26px;font-weight:800;color:var(--bleu)}
+h1{font-size:18px;font-weight:700;margin:6px 0 4px}
+.lieu{font-size:14px;color:var(--gris)}
+.lieu a{color:#1e63d6;text-decoration:none}
+.specs{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0 4px}
+.sp{background:#f3f4f6;border-radius:12px;padding:8px 12px;font-size:13px;font-weight:600}
+h2{font-size:15px;font-weight:700;margin:18px 16px 6px}
+.desc{margin:0 16px;font-size:14px;line-height:1.55;white-space:pre-wrap;color:#374151}
+.ag{display:flex;align-items:center;gap:10px;margin:18px 16px 0;padding:12px;border:1px solid var(--bord);border-radius:14px}
+.av{width:42px;height:42px;border-radius:50%;background:var(--bleu);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700}
+.an{flex:1;font-size:14px;font-weight:600}
+.an small{display:block;font-weight:400;color:var(--gris);font-size:12px}
+.bar{position:fixed;bottom:0;left:0;right:0;max-width:480px;margin:0 auto;background:#fff;border-top:1px solid var(--bord);display:flex;gap:8px;padding:10px 12px}
+.b{flex:1;text-align:center;border-radius:24px;padding:13px 6px;font-weight:700;font-size:14px;text-decoration:none;color:#fff;background:var(--vert)}
+.b.o{background:#fff;color:var(--bleu);border:1px solid var(--bord)}
+.msg{padding:30px 16px;text-align:center;color:var(--gris)}
+</style>
+</head>
+<body>
+<div class="app">
+  <header><a href="index.html">← Retour</a><button id="part">Partager</button></header>
+  <div id="contenu"><div class="msg">Chargement...</div></div>
+</div>
+<script type="module">
+import { db } from './firebase.js';
+import { doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+const $ = id => document.getElementById(id);
+const el = (tag, cls, txt) => { const e = document.createElement(tag); if (cls) e.className = cls; if (txt !== undefined) e.textContent = txt; return e; };
+
+let titrePartage = 'Annonce APPNEED';
+$('part').addEventListener('click', async () => {
+  const data = { title: titrePartage, url: location.href };
+  try {
+    if (navigator.share) await navigator.share(data);
+    else { await navigator.clipboard.writeText(location.href); alert('Lien copié.'); }
+  } catch (e) {}
+});
+
+function lienBtn(texte, href, clair) {
+  const a = el('a', 'b' + (clair ? ' o' : ''), texte);
+  a.href = href;
+  if (href.startsWith('http')) { a.target = '_blank'; a.rel = 'noopener'; }
+  return a;
+}
+
+async function charger() {
+  const c = $('contenu');
+  const id = new URLSearchParams(location.search).get('id');
+  if (!id) { c.textContent = 'Annonce introuvable.'; return; }
+  try {
+    const s = await getDoc(doc(db, 'annonces', id));
+    if (!s.exists()) { c.replaceChildren(el('div', 'msg', 'Annonce introuvable ou supprimée.')); return; }
+    const a = s.data();
+    titrePartage = a.titre;
+    document.title = a.titre + ' - APPNEED';
+    c.replaceChildren();
+
+    const gal = el('div', 'gal');
+    const photos = (a.photos || []).filter(u => /^https?:\/\//i.test(u));
+    if (photos.length) {
+      const rail = el('div', 'rail');
+      photos.forEach(u => { const im = document.createElement('img'); im.src = u; im.alt = ''; im.loading = 'lazy'; rail.appendChild(im); });
+      gal.appendChild(rail);
+      if (photos.length > 1) {
+        const cpt = el('div', 'cpt', '1/' + photos.length);
+        gal.appendChild(cpt);
+        rail.addEventListener('scroll', () => {
+          cpt.textContent = (Math.round(rail.scrollLeft / rail.clientWidth) + 1) + '/' + photos.length;
+        });
+      }
+    } else { gal.appendChild(el('div', 'vide', '🏠')); }
+    const st = a.statut || 'Disponible';
+    gal.appendChild(el('div', 'badge' + (st === 'Réservé' ? ' r' : st.startsWith('Vendu') ? ' v' : ''), st));
+    c.appendChild(gal);
+
+    const inf = el('div', 'inf');
+    inf.appendChild(el('div', 'prix', Number(a.prix).toLocaleString('fr-FR') + ' FCFA'));
+    inf.appendChild(el('h1', '', a.titre));
+    const lieu = el('div', 'lieu', '📍 ' + a.lieu + ' · ');
+    const gpsOk = a.gps && /^-?\d+(\.\d+)?,\s*-?\d+(\.\d+)?$/.test(a.gps);
+    const carte = el('a', '', 'Voir sur la carte');
+    carte.href = 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(gpsOk ? a.gps : a.lieu + ', Togo');
+    carte.target = '_blank'; carte.rel = 'noopener';
+    lieu.appendChild(carte);
+    inf.appendChild(lieu);
+    const specs = el('div', 'specs');
+    specs.appendChild(el('div', 'sp', a.categorie));
+    if (a.surface) specs.appendChild(el('div', 'sp', '📐 ' + a.surface + ' m²'));
+    inf.appendChild(specs);
+    c.appendChild(inf);
+
+    if (a.desc) { c.appendChild(el('h2', '', 'Description')); c.appendChild(el('div', 'desc', a.desc)); }
+
+    if (a.agent || a.agentTel) {
+      const ag = el('div', 'ag');
+      ag.appendChild(el('div', 'av', (a.agent || '?').charAt(0).toUpperCase()));
+      const an = el('div', 'an', a.agent || 'Vendeur');
+      an.appendChild(el('small', '', 'Vendeur vérifié'));
+      ag.appendChild(an);
+      c.appendChild(ag);
+    }
+
+    const bar = el('div', 'bar');
+    bar.appendChild(lienBtn('Message', 'messages.html?annonce=' + encodeURIComponent(id), true));
+    if (a.agentTel) {
+      let n = a.agentTel.replace(/\D/g, '');
+      if (n.length === 8) n = '228' + n;
+      bar.appendChild(lienBtn('WhatsApp', 'https://wa.me/' + n + '?text=' + encodeURIComponent('Bonjour, je suis intéressé par votre annonce : ' + a.titre)));
+      bar.appendChild(lienBtn('Appeler', 'tel:+' + n, true));
+    }
+    document.body.appendChild(bar);
+  } catch (e) {
+    $('contenu').replaceChildren(el('div', 'msg', 'Erreur de chargement : ' + e.message));
+  }
+}
+charger();
+</script>
+</body>
+  </html>
