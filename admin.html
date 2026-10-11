@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Administration - APPNEED</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<style>
+.ver{padding:14px 0;border-bottom:1px solid var(--bord);font-size:14px}
+.ver:last-child{border-bottom:0}
+.ver b{font-size:16px}
+.ver div{margin-top:3px;color:#374151}
+.btns{display:flex;gap:8px;margin-top:10px}
+.btns button,.btns a{flex:1;text-align:center;border:0;border-radius:10px;padding:10px;font:inherit;font-size:13px;font-weight:700;color:#fff;text-decoration:none}
+.ok{background:#16a34a}.no{background:#dc2626}.tel{background:#1e63d6}
+#filtre{width:100%;padding:11px;border:1px solid var(--bord);border-radius:10px;font:inherit;margin-bottom:8px}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="top"><a href="parametres.html">← Paramètres</a><div class="logo">APP<span>NEED</span></div><span></span></header>
+  <h2 class="t">Demandes de vérification</h2>
+  <div class="carte">
+    <select id="filtre">
+      <option value="en attente">En attente</option>
+      <option value="verifie">Vérifiés</option>
+      <option value="refuse">Refusés</option>
+    </select>
+    <div id="liste"><div class="msg">Chargement...</div></div>
+  </div>
+</div>
+<script type="module">
+import { db, auth } from './firebase.js';
+import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { doc, getDoc, updateDoc, collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+const $ = id => document.getElementById(id);
+const el = (tag, cls, txt) => { const e = document.createElement(tag); if (cls) e.className = cls; if (txt !== undefined) e.textContent = txt; return e; };
+
+async function charger() {
+  const l = $('liste');
+  l.replaceChildren(el('div', 'msg', 'Chargement...'));
+  try {
+    const snap = await getDocs(query(collection(db, 'verifications'), where('statut', '==', $('filtre').value)));
+    l.replaceChildren();
+    if (snap.empty) { l.appendChild(el('div', 'msg', 'Aucune demande.')); return; }
+    snap.forEach(d => {
+      const v = d.data();
+      const box = el('div', 'ver');
+      box.appendChild(el('b', '', v.nom + ' (' + v.type + ')'));
+      if (v.entreprise) box.appendChild(el('div', '', 'Entreprise : ' + v.entreprise));
+      box.appendChild(el('div', '', 'Né(e) le ' + v.naissance + ' à ' + v.lieuNaissance));
+      box.appendChild(el('div', '', 'Téléphone : ' + v.telephone));
+      box.appendChild(el('div', '', 'Pièce : ' + v.piece));
+      box.appendChild(el('div', '', 'E-mail : ' + v.email));
+      const btns = el('div', 'btns');
+      const t = el('a', 'tel', 'Appeler');
+      t.href = 'tel:' + String(v.telephone).replace(/[^\d+]/g, '');
+      const ok = el('button', 'ok', 'Approuver');
+      const no = el('button', 'no', 'Refuser');
+      const changer = async s => {
+        if (!confirm('Passer ' + v.nom + ' en « ' + s + ' » ?')) return;
+        try { await updateDoc(doc(db, 'verifications', d.id), { statut: s }); box.remove(); }
+        catch (e) { alert('Erreur : ' + e.message); }
+      };
+      ok.addEventListener('click', () => changer('verifie'));
+      no.addEventListener('click', () => changer('refuse'));
+      btns.appendChild(t); btns.appendChild(ok); btns.appendChild(no);
+      box.appendChild(btns);
+      l.appendChild(box);
+    });
+  } catch (e) { l.replaceChildren(el('div', 'msg', 'Erreur : ' + e.message)); }
+}
+
+onAuthStateChanged(auth, async u => {
+  if (!u) { location.href = 'connexion.html?next=admin.html'; return; }
+  try {
+    const a = await getDoc(doc(db, 'admins', u.uid));
+    if (!a.exists()) { $('liste').replaceChildren(el('div', 'msg', 'Accès réservé aux administrateurs.')); return; }
+  } catch (e) { $('liste').replaceChildren(el('div', 'msg', 'Accès réservé aux administrateurs.')); return; }
+  $('filtre').addEventListener('change', charger);
+  charger();
+});
+</script>
+</body>
+</html>
