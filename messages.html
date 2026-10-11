@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Messages - APPNEED</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<style>
+.conv{display:block;padding:14px;border-bottom:1px solid var(--bord);text-decoration:none;color:#111827}
+.conv b{display:block;font-size:15px}
+.conv small{color:var(--gris);font-size:13px}
+#fil{padding:12px 12px 90px;display:flex;flex-direction:column;gap:6px;background:#efeae2;min-height:calc(100vh - 52px)}
+.m{max-width:80%;padding:8px 12px;border-radius:12px;font-size:14px;line-height:1.4;word-wrap:break-word;white-space:pre-wrap}
+.m.moi{align-self:flex-end;background:#dcf8c6}
+.m.eux{align-self:flex-start;background:#fff}
+#saisie{display:none;position:fixed;bottom:0;left:0;right:0;max-width:480px;margin:0 auto;background:#f0f0f0;padding:8px;gap:8px;align-items:center}
+#saisie input{flex:1;border:0;border-radius:22px;padding:12px 16px;font:inherit;font-size:15px;outline:0}
+#saisie button{border:0;border-radius:50%;width:44px;height:44px;background:#25d366;color:#fff;font-size:18px}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="top">
+    <a href="index.html" id="retour">← Accueil</a>
+    <div id="tit" style="font-weight:700;font-size:16px;max-width:55%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Messages</div>
+    <span></span>
+  </header>
+  <div id="liste"><div class="msg">Chargement...</div></div>
+  <div id="chat" style="display:none"><div id="fil"></div></div>
+</div>
+<div id="saisie">
+  <input id="texte" type="text" placeholder="Écrire un message" maxlength="1000">
+  <button id="envoi">➤</button>
+</div>
+<script type="module">
+import { db, auth } from './firebase.js';
+import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { doc, getDoc, setDoc, addDoc, updateDoc, collection, query, where, orderBy, getDocs, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+const $ = id => document.getElementById(id);
+const el = (tag, cls, txt) => { const e = document.createElement(tag); if (cls) e.className = cls; if (txt !== undefined) e.textContent = txt; return e; };
+const params = new URLSearchParams(location.search);
+let moi = null, cid = null;
+
+function info(t) { $('liste').replaceChildren(el('div', 'msg', t)); }
+
+onAuthStateChanged(auth, u => {
+  if (!u) { location.href = 'connexion.html?next=' + encodeURIComponent('messages.html' + location.search); return; }
+  moi = u;
+  if (params.get('annonce')) demarrer(params.get('annonce'));
+  else if (params.get('c')) ouvrir(params.get('c'));
+  else lister();
+});
+
+async function lister() {
+  $('tit').textContent = 'Messages';
+  info('Chargement...');
+  try {
+    const snap = await getDocs(query(collection(db, 'conversations'), where('participants', 'array-contains', moi.uid)));
+    const items = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+      .sort((a, b) => ((b.dernierDate && b.dernierDate.seconds) || 0) - ((a.dernierDate && a.dernierDate.seconds) || 0));
+    if (!items.length) { info("Aucune conversation. Ouvrez une annonce et touchez « Message »."); return; }
+    const l = $('liste'); l.replaceChildren();
+    items.forEach(c => {
+      const a = el('a', 'conv');
+      a.href = 'messages.html?c=' + encodeURIComponent(c.id);
+      a.appendChild(el('b', '', c.titre || 'Annonce'));
+      a.appendChild(el('small', '', c.dernier || 'Nouvelle conversation'));
+      l.appendChild(a);
+    });
+  } catch (e) { info('Erreur : ' + e.message); }
+}
+
+async function demarrer(annonceId) {
+  try {
+    const s = await getDoc(doc(db, 'annonces', annonceId));
+    if (!s.exists()) { info('Annonce introuvable.'); return; }
+    const a = s.data();
+    if (a.uid === moi.uid) { info("Ceci est votre annonce : les acheteurs vous écriront ici, dans Messages."); return; }
+    const id = annonceId + '_' + moi.uid;
+    await setDoc(doc(db, 'conversations', id), {
+      annonceId: annonceId, titre: a.titre, vendeurUid: a.uid, acheteurUid: moi.uid, participants: [moi.uid, a.uid]
+    }, { merge: true });
+    ouvrir(id);
+  } catch (e) { info('Erreur : ' + e.message); }
+}
+
+async function ouvrir(id) {
+  cid = id;
+  $('liste').style.display = 'none'; $('chat').style.display = 'block'; $('saisie').style.display = 'flex';
+  const r = $('retour'); r.href = 'messages.html'; r.textContent = '← Messages';
+  try {
+    const c = await getDoc(doc(db, 'conversations', id));
+    if (!c.exists()) { $('fil').textContent = 'Conversation introuvable.'; return; }
+    $('tit').textContent = c.data().titre || 'Conversation';
+  } catch (e) { $('fil').textContent = 'Erreur : ' + e.message; return; }
+  onSnapshot(query(collection(db, 'conversations', id, 'messages'), orderBy('date')), snap => {
+    const f = $('fil'); f.replaceChildren();
+    snap.forEach(d => { const m = d.data(); f.appendChild(el('div', 'm ' + (m.auteur === moi.uid ? 'moi' : 'eux'), m.texte)); });
+    window.scrollTo(0, document.body.scrollHeight);
+  }, e => { $('fil').textContent = 'Erreur : ' + e.message; });
+}
+
+async function envoyer() {
+  const i = $('texte'); const t = i.value.trim();
+  if (!t || !cid) return;
+  i.value = '';
+  try {
+    await addDoc(collection(db, 'conversations', cid, 'messages'), { texte: t.slice(0, 1000), auteur: moi.uid, date: serverTimestamp() });
+    await updateDoc(doc(db, 'conversations', cid), { dernier: t.slice(0, 80), dernierDate: serverTimestamp() });
+  } catch (e) { alert('Erreur : ' + e.message); }
+}
+$('envoi').addEventListener('click', envoyer);
+$('texte').addEventListener('keydown', e => { if (e.key === 'Enter') envoyer(); });
+</script>
+</body>
+  </html>
